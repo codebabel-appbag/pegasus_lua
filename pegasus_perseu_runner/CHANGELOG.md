@@ -37,17 +37,21 @@ ecosystem.
   Lines inside block comments (`--[[ ... ]]`) and line comments (`--`)
   are ignored during extraction.
 
-- **Interactive prompt** with ANSI colors and emoji, listing available
-  commands on entry.
+- **Interactive prompt** with ANSI colors and emoji, hinting at the help
+  command (`-h / -help / --help`) on entry.
 
 - **Confirmation prompt** before starting an application:
   `there is a pegasus web application in file: <name>, would you like to
   start this application? [y/N]`
 
 - **Strict command parsing**: every command must be typed alone, with no
-  leading, trailing, or internal whitespace. Combined commands
-  (e.g. `--stop -h`), commands with arguments, and commands with stray
-  spaces are rejected with a clear message.
+  leading, trailing, or internal whitespace. The parser distinguishes
+  two rejection cases:
+  - Combined or space-padded commands that match a known verb
+    (e.g. `--stop -h`, `--stop `) → rejected with
+    `invalid command: avoid typing spaces when entering commands`.
+  - Inputs that do not match any known command (e.g. `xyz`) → rejected
+    with `unknown command: <input>`.
 
 - **Cross-platform process handling**:
   - **Linux** — `setsid` + `$!` for PID capture; `kill -TERM -PID`
@@ -57,6 +61,11 @@ ecosystem.
   - **Windows** — `powershell Start-Process -PassThru` for exact PID
     capture; `Stop-Process -Id <PID> -Force` for targeted termination.
     Only the child process spawned by the runner is killed.
+
+- **Process group termination** on POSIX systems: `--stop` and `exit`
+  terminate the entire process group (`kill -TERM -PID`, note the
+  leading minus), guaranteeing that no orphaned `lua` process is left
+  holding the port.
 
 - **Log file**:
   - POSIX: `/tmp/pegasus-perseu.log`
