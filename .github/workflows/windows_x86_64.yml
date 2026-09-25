@@ -20,16 +20,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install MinGW (for luawinmulti)
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          choco install mingw -y --no-progress
-          $mingw = Get-ChildItem -Path "C:\ProgramData\chocolatey\lib\mingw\tools\install" -Recurse -Filter "gcc.exe" | Select-Object -First 1
-          $mingwDir = $mingw.DirectoryName
-          Write-Host "MinGW dir: $mingwDir"
-          Add-Content -Path $env:GITHUB_PATH -Value $mingwDir
-
       - name: Build Lua 5.3.6 + LuaRocks via luawinmulti
         shell: pwsh
         run: |
@@ -79,20 +69,16 @@ jobs:
           }
           Write-Host "luastatic: $luastatic"
 
-          # Localiza o gcc do MinGW
-          $gcc = (Get-ChildItem -Path "C:\ProgramData\chocolatey\lib\mingw\tools\install" -Recurse -Filter "gcc.exe" -ErrorAction SilentlyContinue | Select-Object -First 1).DirectoryName
-          if (-not $gcc) {
-            Write-Host "=== Procurando gcc ==="
-            Get-ChildItem -Path C:\ -Filter "gcc.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 5
-            throw "gcc not found"
+          $gccDir = "C:\mingw64\bin"
+          if (-not (Test-Path "$gccDir\gcc.exe")) {
+            throw "gcc not found at $gccDir"
           }
-          Write-Host "gcc dir: $gcc"
+          Write-Host "gcc dir: $gccDir"
 
           $liblua = "C:\lua53\lib\liblua53.a"
           $includeDir = "C:\lua53\include\lua\5.3"
 
-          # Executa o luastatic.bat com o PATH incluindo o gcc
-          cmd /c "set PATH=$gcc;%PATH% && `"$luastatic`" pegasus-perseu.lua `"$liblua`" -I`"$includeDir`" -static -static-libgcc -o perseu-srv.exe"
+          cmd /c "set PATH=$gccDir;%PATH% && `"$luastatic`" pegasus-perseu.lua `"$liblua`" -I`"$includeDir`" -static -static-libgcc -o perseu-srv.exe"
 
           if (-not (Test-Path perseu-srv.exe)) { throw "Build failed" }
           Get-Item perseu-srv.exe | Select-Object Name, Length
