@@ -20,48 +20,72 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download LuaRocks all-in-one (with Lua 5.3)
+      - name: Install MinGW (for luawinmulti)
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $url = "https://github.com/luarocks/luarocks/releases/download/v3.11.1/luarocks-3.11.1-windows-64.zip"
-          Invoke-WebRequest $url -OutFile luarocks.zip -UseBasicParsing
-          Expand-Archive luarocks.zip -DestinationPath luarocks -Force
-          Get-ChildItem luarocks -Recurse -Depth 1 | Select-Object FullName
+          # Baixa e instala MinGW-w64 via chocolatey (já vem no runner)
+          choco install mingw -y --no-progress
+          # Adiciona MinGW ao PATH
+          $mingw = Get-ChildItem -Path "C:\ProgramData\chocolatey\lib\mingw\tools\install" -Recurse -Filter "gcc.exe" | Select-Object -First 1
+          $mingwDir = $mingw.DirectoryName
+          Write-Host "MinGW dir: $mingwDir"
+          Add-Content -Path $env:GITHUB_PATH -Value $mingwDir
+
+      - name: Build Lua 5.3.6 + LuaRocks via luawinmulti
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          # Clona o luawinmulti
+          git clone https://github.com/Tieske/luawinmulti.git C:\luawinmulti
+          Set-Location C:\luawinmulti
+          # Compila APENAS Lua 5.3 (mais rápido)
+          .\make.bat --53 install C:\lua53
+          # Lista o que foi gerado
+          Get-ChildItem C:\lua53
+
+      - name: Add Lua 5.3 to PATH
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          # luawinmulti cria lua53.exe, luarocks53.bat, etc.
+          $luaDir = "C:\lua53"
+          Add-Content -Path $env:GITHUB_PATH -Value $luaDir
+          # Cria lua.exe apontando para lua53.exe (luastatic espera "lua")
+          Copy-Item "$luaDir\lua53.exe" "$luaDir\lua.exe" -Force
+          # Verifica
+          & "$luaDir\lua.exe" -v
+          & "$luaDir\luarocks53.bat" --version
 
       - name: Install luastatic
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $luarocks = Get-ChildItem -Path luarocks -Recurse -Filter "luarocks.exe" | Select-Object -First 1
-          Write-Host "Using: $($luarocks.FullName)"
-          & $luarocks.FullName install luastatic
-          Get-ChildItem -Path luarocks -Recurse -Filter "luastatic*" | Select-Object FullName
+          luarocks53.bat install luastatic
+          # luastatic.bat deve estar em C:\lua53\
+          Get-ChildItem C:\lua53 -Filter "luastatic*"
 
       - name: Build perseu-srv.exe
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           Set-Location pegasus_perseu_runner/source
-
-          $luastatic = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter "luastatic.bat" | Select-Object -First 1
-          if (-not $luastatic) { $luastatic = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter "luastatic.exe" | Select-Object -First 1 }
-          Write-Host "luastatic: $($luastatic.FullName)"
-
-          $luaRoot = Get-ChildItem -Path $env:GITHUB_WORKSPACE\luarocks -Recurse -Filter "lua.h" | Select-Object -First 1
-          $includeDir = $luaRoot.DirectoryName
-          $libDir = Get-ChildItem -Path $env:GITHUB_WORKSPACE\luarocks -Recurse -Filter "liblua*.a" | Select-Object -First 1
+          
+          # Encontra liblua.a e headers dentro de C:\lua53
+          $liblua = Get-ChildItem -Path C:\lua53 -Recurse -Filter "liblua*.a" | Select-Object -First 1
+          $luaHeader = Get-ChildItem -Path C:\lua53 -Recurse -Filter "lua.h" | Select-Object -First 1
+          $includeDir = $luaHeader.DirectoryName
+          Write-Host "liblua: $($liblua.FullName)"
           Write-Host "include: $includeDir"
-          Write-Host "lib: $($libDir.FullName)"
-
-          & $luastatic.FullName pegasus-perseu.lua `
-            "$($libDir.FullName)" `
+          
+          & "C:\lua53\luastatic.bat" pegasus-perseu.lua `
+            "$($liblua.FullName)" `
             "-I$includeDir" `
             -static `
             -static-libgcc `
             -o perseu-srv.exe
-
-          if (-not (Test-Path perseu-srv.exe)) { throw "perseu-srv.exe not built" }
+          
+          if (-not (Test-Path perseu-srv.exe)) { throw "Build failed" }
           Get-Item perseu-srv.exe | Select-Object Name, Length
 
       - name: Move binary to application/windows_x86_64
