@@ -34,6 +34,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          $env:PATH = "C:\mingw64\bin;$env:PATH"
           git clone https://github.com/Tieske/luawinmulti.git C:\luawinmulti
           Set-Location C:\luawinmulti
           .\make.bat --53 install C:\lua53
