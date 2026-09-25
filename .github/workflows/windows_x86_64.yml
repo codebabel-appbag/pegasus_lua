@@ -50,19 +50,17 @@ jobs:
           ls -la /tmp/lua-5.3.6/include/
           ls -la /tmp/lua-5.3.6/lib/
 
-      - name: Install LuaRocks 3.11.1
+      - name: Install LuaRocks 3.11.1 (Windows all-in-one)
         shell: msys2 {0}
         run: |
           set -e
           cd /tmp
-          curl -RL -O https://luarocks.org/releases/luarocks-3.11.1.tar.gz
-          tar -xzf luarocks-3.11.1.tar.gz
-          cd luarocks-3.11.1
-          ./configure \
-            --with-lua=/tmp/lua-5.3.6 \
-            --lua-version=5.3
-          make build
-          make install
+          curl -RL -O https://luarocks.org/releases/luarocks-3.11.1-windows-64.zip
+          unzip -q luarocks-3.11.1-windows-64.zip -d luarocks-win
+          ls -la luarocks-win/
+          cp luarocks-win/luarocks.exe /usr/bin/
+          cp luarocks-win/luarocks-admin.exe /usr/bin/
+          cp luarocks-win/*.dll /usr/bin/ 2>/dev/null || true
           which luarocks
           luarocks --version
 
