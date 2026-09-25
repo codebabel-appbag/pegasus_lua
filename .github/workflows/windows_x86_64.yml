@@ -44,18 +44,26 @@ jobs:
           # Lista o que foi gerado
           Get-ChildItem C:\lua53
 
-      - name: Add Lua 5.3 to PATH
+      - name: Configure Lua 5.3 environment
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          # luawinmulti cria lua53.exe, luarocks53.bat, etc.
-          $luaDir = "C:\lua53"
-          Add-Content -Path $env:GITHUB_PATH -Value $luaDir
-          # Cria lua.exe apontando para lua53.exe (luastatic espera "lua")
-          Copy-Item "$luaDir\lua53.exe" "$luaDir\lua.exe" -Force
+          # Lista o que foi gerado
+          Get-ChildItem C:\lua53 -Recurse -Filter "*.exe" | Select-Object FullName
+          Get-ChildItem C:\lua53 -Recurse -Filter "*.bat" | Select-Object FullName
+          
+          # Roda setlua.bat para criar lua.exe e luarocks.bat
+          $setlua = Get-ChildItem -Path C:\lua53 -Recurse -Filter "setlua.bat" | Select-Object -First 1
+          if ($setlua) {
+            & $setlua.FullName 53
+          }
+          
+          # Adiciona ao PATH
+          Add-Content -Path $env:GITHUB_PATH -Value "C:\lua53\bin"
+          Add-Content -Path $env:GITHUB_PATH -Value "C:\lua53"
+          
           # Verifica
-          & "$luaDir\lua.exe" -v
-          & "$luaDir\luarocks53.bat" --version
+          Get-ChildItem C:\lua53 -Recurse -Filter "lua*.exe" | Select-Object FullName
 
       - name: Install luastatic
         shell: pwsh
