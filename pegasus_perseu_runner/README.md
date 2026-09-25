@@ -1,4 +1,4 @@
-# pegasus-perseu
+# 🐴🪽 pegasus-perseu
 
 A lifecycle manager for Pegasus.lua web applications.
 
@@ -11,7 +11,9 @@ Built with **Lua 5.3+** in mind, and tested on Linux, macOS, and Windows.
 
 ---
 
-## Why
+![](banner.png)
+
+## 💡 Why
 
 Pegasus.lua is a lightweight HTTP server — it does not ship with a process
 manager, and stopping it via `Ctrl+C` requires pressing it twice.
@@ -22,7 +24,7 @@ It is a community contribution to the Pegasus.lua ecosystem.
 
 ---
 
-## Features
+## ✨ Features
 
 - Auto-detects the Pegasus web application in the current folder.
 - Reads and displays the port the application serves on.
@@ -34,7 +36,7 @@ It is a community contribution to the Pegasus.lua ecosystem.
 
 ---
 
-## Requirements
+## 📋 Requirements
 
 - **Lua 5.3 or newer** (also compatible with 5.4 and 5.5).
 - **Pegasus.lua** installed (`luarocks install pegasus`).
@@ -42,7 +44,7 @@ It is a community contribution to the Pegasus.lua ecosystem.
 
 ---
 
-## Installation
+## 📦 Installation
 
 ### Option 1 — Run as a Lua script
 
@@ -147,7 +149,7 @@ Same note: replace the folder path, then open a new terminal window.
 
 ---
 
-## Usage
+## 🎮 Usage
 
 Place `pegasus-perseu` inside the folder that contains your Pegasus web
 application (a `.lua` file that calls `require("pegasus")`), then run it:
@@ -164,9 +166,11 @@ It will:
 5. Show the port it is serving on.
 6. Drop you into an interactive prompt.
 ```
-    ┌─┐┌─┐┌─┐┌─┐┌─┐┬ ┬┌─┐   ┌─┐┬─┐┬  ┬
-    ├─┘├┤ │ ┬├─┤└─┐│ │└─┐───└─┐├┬┘└┐┌┘
-    ┴  └─┘└─┘┴ ┴└─┘└─┘└─┘   └─┘┴└─ └┘
+
+    ▛▌█▌▛▌▀▌▛▘▌▌▛▘▄▖▛▌█▌▛▘▛▘█▌▌▌▄▖▛▘▛▘▌▌
+    ▙▌▙▖▙▌█▌▄▌▙▌▄▌  ▙▌▙▖▌ ▄▌▙▖▙▌  ▄▌▌ ▚▘
+    ▌   ▄▌          ▌
+
 
     🚀 server.lua
     ✅ Server running at http://localhost:5600
@@ -207,7 +211,7 @@ It will:
 
 ---
 
-## Security
+## 🔒 Security
 
 `pegasus-perseu` spawns a subprocess and interacts with the shell, so it
 enforces several safety guarantees:
@@ -228,13 +232,18 @@ enforces several safety guarantees:
 
 ---
 
-## Platform notes
+## 💻 Platform notes
 
-| Platform | Start method                           | Stop method                            |
-| -------- | -------------------------------------- | -------------------------------------- |
-| Linux    | `setsid` + `$!` PID capture            | `kill <PID>`                           |
-| macOS    | `&` + `$!` PID capture (no `setsid`)   | `kill <PID>`                           |
-| Windows  | `Start-Process -PassThru` (PowerShell) | `Stop-Process -Id <PID>` (PowerShell)  |
+| Platform | Start method                           | Stop method                              |
+| -------- | -------------------------------------- | ---------------------------------------- |
+| Linux    | `setsid` + `$!` PID capture            | `kill -TERM -<PID>` (process group)      |
+| macOS    | `&` + `$!` PID capture (no `setsid`)   | `kill -TERM -<PID>` (process group)      |
+| Windows  | `Start-Process -PassThru` (PowerShell) | `Stop-Process -Id <PID>` (PowerShell)    |
+
+**Process group termination:** on POSIX systems, `pegasus-perseu` terminates
+the entire process group with `kill -TERM -<PID>` (note the leading minus),
+followed by a `kill -TERM <PID>` fallback. This guarantees that no orphaned
+`lua` process is left holding the port after `--stop` or `exit`.
 
 **macOS without `setsid`:** the child process may receive `SIGHUP` if the
 parent terminal is closed. If the application must survive terminal closure,
@@ -247,7 +256,7 @@ that process.
 
 ---
 
-## How it detects the application
+## 🔍 How it detects the application
 
 `pegasus-perseu` scans the current folder for one of these filenames, in
 order:
@@ -273,7 +282,7 @@ application itself is still started — the port shown is informational.
 
 ---
 
-## Contributing
+## 🤝 Contributing
 
 This is a community contribution to the Pegasus.lua ecosystem. Issues and
 pull requests are welcome.
@@ -284,8 +293,16 @@ pull requests are welcome.
 The intent is to fill a real gap in the Pegasus.lua tooling — clean process
 lifecycle, cross-platform — without altering the server internals.
 
+minguantEcossys & codebabel movement.
 ---
 
-## License
+## 📜 Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a detailed list of changes across
+releases.
+
+---
+
+## 📄 License
 
 MIT.
