@@ -40,7 +40,7 @@ jobs:
         run: |
           set -e
           cd /tmp
-          curl -RL -O https://www.lua.org/ftp/lua-5.3.6.tar.gz
+          curl -R -O https://www.lua.org/ftp/lua-5.3.6.tar.gz
           tar -xzf lua-5.3.6.tar.gz
           cd lua-5.3.6
           make mingw
@@ -52,15 +52,12 @@ jobs:
         run: |
           set -e
           cd /tmp
-          curl -RL -O https://luarocks.org/releases/luarocks-3.11.1.tar.gz
-          tar -xzf luarocks-3.11.1.tar.gz
-          cd luarocks-3.11.1
-          ./configure \
-            --with-lua=/tmp/lua-5.3.6 \
-            --with-lua-include=/tmp/lua-5.3.6/src \
-            --lua-version=5.3
-          make build
-          make install
+          curl -RL -O https://luarocks.org/releases/luarocks-3.11.1-windows-64.zip
+          unzip -q luarocks-3.11.1-windows-64.zip
+          ls -la
+          # O executável está na raiz do zip; mova para um local no PATH
+          mv luarocks.exe /usr/bin/luarocks
+          mv luarocks-admin.exe /usr/bin/luarocks-admin
           luarocks --version
 
       - name: Install luastatic
