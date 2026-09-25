@@ -56,7 +56,7 @@ jobs:
           set -e
           cd /tmp
           curl -RL -O https://luarocks.org/releases/luarocks-3.11.1-windows-64.zip
-          unzip -q luarocks-3.11.1-windows-64.zip -d luarocks-win
+          unzip -q -j luarocks-3.11.1-windows-64.zip -d luarocks-win
           ls -la luarocks-win/
           cp luarocks-win/luarocks.exe /usr/bin/
           cp luarocks-win/luarocks-admin.exe /usr/bin/
