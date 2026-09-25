@@ -72,26 +72,20 @@ jobs:
           $ErrorActionPreference = "Stop"
           Set-Location pegasus_perseu_runner/source
 
+          # Localiza o luastatic.bat
           $luastatic = Get-ChildItem -Path C:\lua53 -Recurse -Filter "luastatic.bat" -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $luastatic) {
-            $luastatic = Get-ChildItem -Path C:\lua53 -Recurse -Filter "luastatic.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-          }
-          if (-not $luastatic) {
-            Write-Host "=== Listing C:\lua53 recursively ==="
+            Write-Host "=== Listing luastatic* ==="
             Get-ChildItem -Path C:\lua53 -Recurse -Filter "luastatic*" | Select-Object FullName
-            throw "luastatic not found anywhere in C:\lua53"
+            throw "luastatic.bat not found"
           }
           Write-Host "luastatic: $($luastatic.FullName)"
 
           $liblua = "C:\lua53\lib\liblua53.a"
           $includeDir = "C:\lua53\include\lua\5.3"
 
-          & $luastatic.FullName pegasus-perseu.lua `
-            "$liblua" `
-            "-I$includeDir" `
-            -static `
-            -static-libgcc `
-            -o perseu-srv.exe
+          # Chama o .bat via cmd /c
+          cmd /c "`"$($luastatic.FullName)`" pegasus-perseu.lua `"$liblua`" `"-I$includeDir`" -static -static-libgcc -o perseu-srv.exe"
 
           if (-not (Test-Path perseu-srv.exe)) { throw "Build failed" }
           Get-Item perseu-srv.exe | Select-Object Name, Length
