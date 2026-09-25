@@ -40,7 +40,7 @@ jobs:
         run: |
           set -e
           cd /tmp
-          curl -R -O https://www.lua.org/ftp/lua-5.3.6.tar.gz
+          curl -RL -O https://www.lua.org/ftp/lua-5.3.6.tar.gz
           tar -xzf lua-5.3.6.tar.gz
           cd lua-5.3.6
           make mingw
@@ -52,7 +52,7 @@ jobs:
         run: |
           set -e
           cd /tmp
-          curl -R -O https://luarocks.org/releases/luarocks-3.11.1.tar.gz
+          curl -RL -O https://luarocks.org/releases/luarocks-3.11.1.tar.gz
           tar -xzf luarocks-3.11.1.tar.gz
           cd luarocks-3.11.1
           ./configure \
