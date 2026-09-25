@@ -1,0 +1,115 @@
+name: Build Fedora x86_64
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build on Fedora x86_64
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+
+    steps:
+      - name: Install base tools
+        run: |
+          set -e
+          dnf install -y \
+            git \
+            make \
+            gcc \
+            glibc-devel \
+            curl \
+            ca-certificates \
+            unzip \
+            zip \
+            file \
+            findutils
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build Lua 5.3.6 (static)
+        run: |
+          set -e
+          cd /tmp
+          curl -RL -O https://www.lua.org/ftp/lua-5.3.6.tar.gz
+          tar -xzf lua-5.3.6.tar.gz
+          cd lua-5.3.6
+          make linux MYCFLAGS="-fPIC" MYLDFLAGS="-static"
+          make install INSTALL_TOP=/tmp/lua-5.3.6
+          test -f /tmp/lua-5.3.6/lib/liblua.a
+          ls -la /tmp/lua-5.3.6/lib/
+
+      - name: Install LuaRocks 3.11.1
+        run: |
+          set -e
+          cd /tmp
+          curl -RL -O https://luarocks.org/releases/luarocks-3.11.1.tar.gz
+          tar -xzf luarocks-3.11.1.tar.gz
+          cd luarocks-3.11.1
+          ./configure \
+            --with-lua=/tmp/lua-5.3.6 \
+            --lua-version=5.3
+          make build
+          make install
+          luarocks --version
+
+      - name: Install luastatic
+        run: |
+          set -e
+          luarocks install luastatic
+          which luastatic
+
+      - name: Build perseu-srv
+        run: |
+          set -e
+          cd "$GITHUB_WORKSPACE/pegasus_perseu_runner/source"
+          test -f pegasus-perseu.lua
+          luastatic pegasus-perseu.lua \
+            /tmp/lua-5.3.6/lib/liblua.a \
+            -I/tmp/lua-5.3.6/include \
+            -static \
+            -o perseu-srv
+          test -f perseu-srv
+          file perseu-srv
+          ls -la perseu-srv
+
+      - name: Move binary to application/fedora_x86_64
+        run: |
+          set -e
+          cd "$GITHUB_WORKSPACE/pegasus_perseu_runner"
+          mkdir -p application/fedora_x86_64
+          mv source/perseu-srv application/fedora_x86_64/
+          ls -la application/fedora_x86_64/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: perseu-srv-fedora-x86_64
+          path: pegasus_perseu_runner/application/fedora_x86_64/perseu-srv
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Commit and push binary
+        run: |
+          set -e
+          cd "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pegasus_perseu_runner/application/fedora_x86_64/perseu-srv
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "build(fedora): update perseu-srv [skip ci]"
+            git push
+          fi
