@@ -24,9 +24,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          # Baixa e instala MinGW-w64 via chocolatey (já vem no runner)
           choco install mingw -y --no-progress
-          # Adiciona MinGW ao PATH
           $mingw = Get-ChildItem -Path "C:\ProgramData\chocolatey\lib\mingw\tools\install" -Recurse -Filter "gcc.exe" | Select-Object -First 1
           $mingwDir = $mingw.DirectoryName
           Write-Host "MinGW dir: $mingwDir"
@@ -36,63 +34,65 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          # Clona o luawinmulti
           git clone https://github.com/Tieske/luawinmulti.git C:\luawinmulti
           Set-Location C:\luawinmulti
-          # Compila APENAS Lua 5.3 (mais rápido)
           .\make.bat --53 install C:\lua53
-          # Lista o que foi gerado
           Get-ChildItem C:\lua53
 
       - name: Configure Lua 5.3 environment
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          # Lista o que foi gerado
           Get-ChildItem C:\lua53 -Recurse -Filter "*.exe" | Select-Object FullName
           Get-ChildItem C:\lua53 -Recurse -Filter "*.bat" | Select-Object FullName
-          
-          # Roda setlua.bat para criar lua.exe e luarocks.bat
+
           $setlua = Get-ChildItem -Path C:\lua53 -Recurse -Filter "setlua.bat" | Select-Object -First 1
           if ($setlua) {
             & $setlua.FullName 53
           }
-          
-          # Adiciona ao PATH
+
           Add-Content -Path $env:GITHUB_PATH -Value "C:\lua53\bin"
           Add-Content -Path $env:GITHUB_PATH -Value "C:\lua53"
-          
-          # Verifica
+
           Get-ChildItem C:\lua53 -Recurse -Filter "lua*.exe" | Select-Object FullName
 
       - name: Install luastatic
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          luarocks53.bat install luastatic
-          # luastatic.bat deve estar em C:\lua53\
-          Get-ChildItem C:\lua53 -Filter "luastatic*"
+          $luarocks = Get-ChildItem -Path C:\lua53 -Recurse -Filter "luarocks*.bat" | Select-Object -First 1
+          Write-Host "luarocks: $($luarocks.FullName)"
+          & $luarocks.FullName install luastatic
+          Write-Host "=== luastatic location ==="
+          Get-ChildItem -Path C:\lua53 -Recurse -Filter "luastatic*" | Select-Object FullName
 
       - name: Build perseu-srv.exe
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           Set-Location pegasus_perseu_runner/source
-          
-          # Encontra liblua.a e headers dentro de C:\lua53
-          $liblua = Get-ChildItem -Path C:\lua53 -Recurse -Filter "liblua*.a" | Select-Object -First 1
-          $luaHeader = Get-ChildItem -Path C:\lua53 -Recurse -Filter "lua.h" | Select-Object -First 1
-          $includeDir = $luaHeader.DirectoryName
-          Write-Host "liblua: $($liblua.FullName)"
-          Write-Host "include: $includeDir"
-          
-          & "C:\lua53\luastatic.bat" pegasus-perseu.lua `
-            "$($liblua.FullName)" `
+
+          $luastatic = Get-ChildItem -Path C:\lua53 -Recurse -Filter "luastatic.bat" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $luastatic) {
+            $luastatic = Get-ChildItem -Path C:\lua53 -Recurse -Filter "luastatic.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          }
+          if (-not $luastatic) {
+            Write-Host "=== Listing C:\lua53 recursively ==="
+            Get-ChildItem -Path C:\lua53 -Recurse -Filter "luastatic*" | Select-Object FullName
+            throw "luastatic not found anywhere in C:\lua53"
+          }
+          Write-Host "luastatic: $($luastatic.FullName)"
+
+          $liblua = "C:\lua53\lib\liblua53.a"
+          $includeDir = "C:\lua53\include\lua\5.3"
+
+          & $luastatic.FullName pegasus-perseu.lua `
+            "$liblua" `
             "-I$includeDir" `
             -static `
             -static-libgcc `
             -o perseu-srv.exe
-          
+
           if (-not (Test-Path perseu-srv.exe)) { throw "Build failed" }
           Get-Item perseu-srv.exe | Select-Object Name, Length
 
