@@ -1,0 +1,157 @@
+name: Build Windows x86_64
+
+# ──────────────────────────────────────────────────────────────
+# Builds pegasus_perseu_runner/source/pegasus-perseu.lua into a
+# standalone Windows x86_64 executable using luastatic + a
+# statically compiled Lua 5.3.6.
+#
+# Output:
+#   pegasus_perseu_runner/application/windows_x86_64/perseu-srv.exe
+# ──────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'pegasus_perseu_runner/source/pegasus-perseu.lua'
+      - '.github/workflows/build-windows-x86_64.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build on Windows x86_64
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ────────────────────────────────────────────────────────
+      # MSYS2 provides a Unix-like build environment with
+      # MinGW-w64 GCC, which luastatic expects on Windows.
+      # ────────────────────────────────────────────────────────
+      - name: Setup MSYS2 (MinGW64)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            make
+            tar
+            curl
+            unzip
+            zip
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-binutils
+
+      # ────────────────────────────────────────────────────────
+      # Lua 5.3.6 — exact version, built as a static library
+      # so luastatic can embed it in the final binary.
+      # ────────────────────────────────────────────────────────
+      - name: Build Lua 5.3.6 (static)
+        shell: msys2 {0}
+        run: |
+          set -e
+          cd /tmp
+          curl -R -O https://www.lua.org/ftp/lua-5.3.6.tar.gz
+          tar -xzf lua-5.3.6.tar.gz
+          cd lua-5.3.6
+          make mingw
+          test -f src/liblua.a
+          echo "Lua static lib built:"
+          ls -la src/liblua.a
+
+      # ────────────────────────────────────────────────────────
+      # LuaRocks 3.11.1 — package manager used to install luastatic.
+      # ────────────────────────────────────────────────────────
+      - name: Install LuaRocks 3.11.1
+        shell: msys2 {0}
+        run: |
+          set -e
+          cd /tmp
+          curl -R -O https://luarocks.org/releases/luarocks-3.11.1.tar.gz
+          tar -xzf luarocks-3.11.1.tar.gz
+          cd luarocks-3.11.1
+          ./configure \
+            --with-lua=/tmp/lua-5.3.6 \
+            --with-lua-include=/tmp/lua-5.3.6/src \
+            --lua-version=5.3
+          make build
+          make install
+          luarocks --version
+
+      - name: Install luastatic
+        shell: msys2 {0}
+        run: |
+          set -e
+          luarocks install luastatic
+          which luastatic
+
+      # ────────────────────────────────────────────────────────
+      # Compile the runner into a standalone .exe.
+      # -static ensures no external DLL dependencies (aside from
+      # base Windows system DLLs).
+      # ────────────────────────────────────────────────────────
+      - name: Build perseu-srv.exe
+        shell: msys2 {0}
+        run: |
+          set -e
+          cd "$GITHUB_WORKSPACE/pegasus_perseu_runner/source"
+          test -f pegasus-perseu.lua
+          luastatic pegasus-perseu.lua \
+            /tmp/lua-5.3.6/src/liblua.a \
+            -I/tmp/lua-5.3.6/src \
+            -static \
+            -static-libgcc \
+            -o perseu-srv.exe
+          test -f perseu-srv.exe
+          ls -la perseu-srv.exe
+
+      # ────────────────────────────────────────────────────────
+      # Move binary to the correct application subfolder.
+      # ────────────────────────────────────────────────────────
+      - name: Move binary to application/windows_x86_64
+        shell: msys2 {0}
+        run: |
+          set -e
+          cd "$GITHUB_WORKSPACE/pegasus_perseu_runner"
+          mkdir -p application/windows_x86_64
+          mv source/perseu-srv.exe application/windows_x86_64/
+          ls -la application/windows_x86_64/
+
+      # ────────────────────────────────────────────────────────
+      # Upload as GitHub Actions artifact (90-day retention).
+      # ────────────────────────────────────────────────────────
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: perseu-srv-windows-x86_64
+          path: pegasus_perseu_runner/application/windows_x86_64/perseu-srv.exe
+          if-no-files-found: error
+          retention-days: 90
+
+      # ────────────────────────────────────────────────────────
+      # Commit and push the binary back to the repository.
+      # [skip ci] prevents retriggering the workflow.
+      # ────────────────────────────────────────────────────────
+      - name: Commit and push binary
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/master'
+        shell: msys2 {0}
+        run: |
+          set -e
+          cd "$GITHUB_WORKSPACE"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pegasus_perseu_runner/application/windows_x86_64/perseu-srv.exe
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "build(windows): update perseu-srv.exe [skip ci]"
+            git push
+          fi
