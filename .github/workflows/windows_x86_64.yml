@@ -72,20 +72,26 @@ jobs:
           $ErrorActionPreference = "Stop"
           Set-Location pegasus_perseu_runner/source
 
-          # Localiza o luastatic.bat
-          $luastatic = Get-ChildItem -Path C:\lua53 -Recurse -Filter "luastatic.bat" -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $luastatic) {
-            Write-Host "=== Listing luastatic* ==="
-            Get-ChildItem -Path C:\lua53 -Recurse -Filter "luastatic*" | Select-Object FullName
-            throw "luastatic.bat not found"
+          $luastatic = "C:\lua53\bin\luastatic.bat"
+          if (-not (Test-Path $luastatic)) {
+            $luastatic = (Get-ChildItem -Path C:\lua53 -Recurse -Filter "luastatic.bat" | Select-Object -First 1).FullName
           }
-          Write-Host "luastatic: $($luastatic.FullName)"
+          Write-Host "luastatic: $luastatic"
+
+          # Localiza o gcc do MinGW
+          $gcc = (Get-ChildItem -Path "C:\ProgramData\chocolatey\lib\mingw\tools\install" -Recurse -Filter "gcc.exe" -ErrorAction SilentlyContinue | Select-Object -First 1).DirectoryName
+          if (-not $gcc) {
+            Write-Host "=== Procurando gcc ==="
+            Get-ChildItem -Path C:\ -Filter "gcc.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 5
+            throw "gcc not found"
+          }
+          Write-Host "gcc dir: $gcc"
 
           $liblua = "C:\lua53\lib\liblua53.a"
           $includeDir = "C:\lua53\include\lua\5.3"
 
-          # Chama o .bat via cmd /c
-          cmd /c "`"$($luastatic.FullName)`" pegasus-perseu.lua `"$liblua`" `"-I$includeDir`" -static -static-libgcc -o perseu-srv.exe"
+          # Executa o luastatic.bat com o PATH incluindo o gcc
+          cmd /c "set PATH=$gcc;%PATH% && `"$luastatic`" pegasus-perseu.lua `"$liblua`" -I`"$includeDir`" -static -static-libgcc -o perseu-srv.exe"
 
           if (-not (Test-Path perseu-srv.exe)) { throw "Build failed" }
           Get-Item perseu-srv.exe | Select-Object Name, Length
