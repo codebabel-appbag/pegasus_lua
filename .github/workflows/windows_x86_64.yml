@@ -35,18 +35,6 @@ jobs:
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-binutils
 
-      - name: Build Lua 5.3.6 (static)
-        shell: msys2 {0}
-        run: |
-          set -e
-          cd /tmp
-          curl -R -O https://www.lua.org/ftp/lua-5.3.6.tar.gz
-          tar -xzf lua-5.3.6.tar.gz
-          cd lua-5.3.6
-          make mingw
-          test -f src/liblua.a
-          ls -la src/liblua.a
-
       - name: Build and install Lua 5.3.6 (static)
         shell: msys2 {0}
         run: |
@@ -62,6 +50,22 @@ jobs:
           ls -la /tmp/lua-5.3.6/include/
           ls -la /tmp/lua-5.3.6/lib/
 
+      - name: Install LuaRocks 3.11.1
+        shell: msys2 {0}
+        run: |
+          set -e
+          cd /tmp
+          curl -RL -O https://luarocks.org/releases/luarocks-3.11.1.tar.gz
+          tar -xzf luarocks-3.11.1.tar.gz
+          cd luarocks-3.11.1
+          ./configure \
+            --with-lua=/tmp/lua-5.3.6 \
+            --lua-version=5.3
+          make build
+          make install
+          which luarocks
+          luarocks --version
+
       - name: Install luastatic
         shell: msys2 {0}
         run: |
@@ -76,8 +80,8 @@ jobs:
           cd "$GITHUB_WORKSPACE/pegasus_perseu_runner/source"
           test -f pegasus-perseu.lua
           luastatic pegasus-perseu.lua \
-            /tmp/lua-5.3.6/src/liblua.a \
-            -I/tmp/lua-5.3.6/src \
+            /tmp/lua-5.3.6/lib/liblua.a \
+            -I/tmp/lua-5.3.6/include \
             -static \
             -static-libgcc \
             -o perseu-srv.exe
