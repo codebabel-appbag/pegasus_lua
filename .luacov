@@ -1,5 +1,0 @@
-modules = {
-   ["homie45.*"] = "src"
-}
-
-runreport = true
